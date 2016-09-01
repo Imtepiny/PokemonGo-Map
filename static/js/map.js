@@ -28,6 +28,7 @@ var rawDataIsLoading = false
 var locationMarker
 var rangeMarkers = ['pokemon', 'pokestop', 'gym']
 var searchMarker
+var interactionMarker
 var storeZoom = true
 var scanPath
 
@@ -930,6 +931,7 @@ function initMap () { // eslint-disable-line no-unused-vars
   })
 
   searchMarker = createSearchMarker()
+  createInteractionMarker()
 
   addMyLocationButton()
   initSidebar()
@@ -982,6 +984,39 @@ function createSearchMarker () {
   })
 
   return searchMarker
+}
+
+function createInteractionMarker () {
+  interactionMarker = new google.maps.Marker({ // need to keep reference.
+    position: {
+      lat: centerLat,
+      lng: centerLng
+    },
+    map: map,
+    icon: {
+      anchor: new google.maps.Point(11, 11),
+      path: 'm0,0 22,22m0-22-22,22',
+      scale: 1,
+      strokeWeight: 2,
+      strokeColor: '#000',
+      fillColor: '#333',
+      fillOpacity: 0.8
+    },
+    draggable: true,
+    zIndex: google.maps.Marker.MAX_ZINDEX + 1,
+    crossOnDrag: false
+  })
+
+  interactionMarker.rangeCircle = addRangeCircle(interactionMarker, map, 'interaction', 0, true)
+
+  google.maps.event.addListener(interactionMarker, 'dragend', function () {
+    interactionMarker.rangeCircle.setCenter(interactionMarker.getPosition())
+  })
+  google.maps.event.addListener(interactionMarker.rangeCircle, 'dragend', function () {
+    interactionMarker.setPosition(interactionMarker.rangeCircle.getCenter())
+  })
+
+  interactionMarker.setOptions({'draggable': true})
 }
 
 var searchControlURI = 'search_control'
@@ -1236,8 +1271,9 @@ function getGoogleSprite (index, sprite, displayHeight) {
   }
 }
 
-function addRangeCircle (marker, map, type, teamId) {
+function addRangeCircle (marker, map, type, teamId, draggable) {
   var targetmap = null
+  var makeDraggable = false
   var circleCenter = new google.maps.LatLng(marker.position.lat(), marker.position.lng())
   var gymColors = ['#999999', '#0051CF', '#FF260E', '#FECC23'] // 'Uncontested', 'Mystic', 'Valor', 'Instinct']
   var circleColor = '#cccccc'
@@ -1245,11 +1281,13 @@ function addRangeCircle (marker, map, type, teamId) {
   if (teamId) teamColor = gymColors[teamId]
 
   if (type === 'search') circleColor = '#333333'
+  if (type === 'interaction') circleColor = '#ffcc00'
   if (type === 'pokemon') circleColor = '#C233F2'
   if (type === 'pokestop') circleColor = '#3EB0FF'
   if (type === 'gym') circleColor = teamColor
 
   if (map) targetmap = map
+  if (draggable) makeDraggable = draggable
 
   var rangeCircleOpts = {
     map: targetmap,
@@ -1259,7 +1297,8 @@ function addRangeCircle (marker, map, type, teamId) {
     strokeOpacity: 0.9,
     center: circleCenter,
     fillColor: circleColor,
-    fillOpacity: 0.3
+    fillOpacity: 0.3,
+    draggable: makeDraggable
   }
   var rangeCircle = new google.maps.Circle(rangeCircleOpts)
   return rangeCircle
