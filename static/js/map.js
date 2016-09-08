@@ -980,6 +980,12 @@ function createSearchMarker () {
   return searchMarker
 }
 
+function updateInteractionMarker (pos) {
+    interactionMarker.scanCircle1.setCenter(pos)
+    interactionMarker.scanCircle2.setCenter(pos)
+    interactionMarker.scanCircle3.setCenter(pos)
+    interactionMarker.infoWindow.setContent(interactionLabel(interactionMarker))
+}
 function createInteractionMarker () {
   interactionMarker = new google.maps.Marker({ // need to keep reference.
     position: {
@@ -1001,16 +1007,30 @@ function createInteractionMarker () {
     crossOnDrag: false
   })
 
+  interactionMarker.scanCircle1 = addRangeCircle(interactionMarker, map, 'scan', 0, false)
+  interactionMarker.scanCircle2 = addRangeCircle(interactionMarker, map, 'scan', 0, false)
+  interactionMarker.scanCircle2.setRadius(140)
+  interactionMarker.scanCircle3 = addRangeCircle(interactionMarker, map, 'scan', 0, false)
+  interactionMarker.scanCircle3.setRadius(190)
   interactionMarker.rangeCircle = addRangeCircle(interactionMarker, map, 'interaction', 0, true)
 
   google.maps.event.addListener(interactionMarker, 'dragend', function () {
-    interactionMarker.rangeCircle.setCenter(interactionMarker.getPosition())
+    var pos = interactionMarker.getPosition()
+    interactionMarker.rangeCircle.setCenter(pos)
+    updateInteractionMarker(pos)
   })
   google.maps.event.addListener(interactionMarker.rangeCircle, 'dragend', function () {
-    interactionMarker.setPosition(interactionMarker.rangeCircle.getCenter())
+    var pos = interactionMarker.rangeCircle.getCenter()
+    interactionMarker.setPosition(pos)
+    updateInteractionMarker(pos)
   })
 
-  interactionMarker.setOptions({'draggable': true})
+  interactionMarker.infoWindow = new google.maps.InfoWindow({
+    content: interactionLabel(interactionMarker),
+    disableAutoPan: true
+  })
+
+  addListeners(interactionMarker)
 }
 
 var searchControlURI = 'search_control'
@@ -1244,6 +1264,22 @@ function spawnpointLabel (item) {
   }
   return str
 }
+function interactionLabel (item) {
+  var pos = item.getPosition()
+  var latitude = pos.lat().toFixed(6)
+  var longitude = pos.lng().toFixed(7)
+  var str = `
+    <div>
+      <b>Interaction Marker</b>
+    </div>
+    <div>
+      Location: ${latitude},${longitude}
+    </div>
+    <div>
+      <a href='https://www.google.com/maps/dir/Current+Location/${latitude},${longitude}?hl=en' target='_blank' title='View in Maps'>Get directions</a>
+    </div>`
+  return str
+}
 
 function getGoogleSprite (index, sprite, displayHeight) {
   displayHeight = Math.max(displayHeight, 3)
@@ -1275,6 +1311,7 @@ function addRangeCircle (marker, map, type, teamId, draggable) {
 
   var range
   var circleColor
+  var fillOpacity = 0.3
 
   // handle each type of marker and be explicit about the range circle attributes
   switch (type) {
@@ -1294,6 +1331,10 @@ function addRangeCircle (marker, map, type, teamId, draggable) {
       circleColor = teamColor
       range = 40
       break
+    case 'scan':
+      circleColor = '#FFCC00'
+      range = 70
+      fillOpacity = 0
   }
 
   if (map) targetmap = map
@@ -1307,7 +1348,7 @@ function addRangeCircle (marker, map, type, teamId, draggable) {
     strokeOpacity: 0.9,
     center: circleCenter,
     fillColor: circleColor,
-    fillOpacity: 0.3,
+    fillOpacity: fillOpacity,
     draggable: makeDraggable
   }
   var rangeCircle = new google.maps.Circle(rangeCircleOpts)
